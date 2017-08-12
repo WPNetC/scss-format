@@ -87,8 +87,12 @@ let processBlock = function (node) {
 };
 
 let processNonBlock = function (node) {
-
     if (node.type === _C.COMMENT_MULTI_TAG || node.type === _C.COMMENT_SINGLE_TAG) {
+        for (let ii = 0; ii < node.data.length; ii++) {
+            buffer += writeIndent(node.depth);
+            buffer += node.data[ii].value;
+            buffer += '\r\n';
+        }
         return;
     }
 
@@ -98,16 +102,35 @@ let processNonBlock = function (node) {
         node.name = sChr + node.name;
     }
 
-    if(node.name.indexOf(':') > -1){
-        node.name = node.name.replace(':', '') + baseRules.postPropName + ':'+ baseRules.postPropColon;
-    } else if (node.name.indexOf(' ') == -1){
+    if (node.name.indexOf(':') > -1) {
+        node.name = node.name.replace(':', '') + baseRules.postPropName + ':' + baseRules.postPropColon;
+    } else if (node.name.indexOf(' ') == -1) {
         node.name += ' ';
     }
 
     buffer += node.name; // Write name with formatted colon. :)
+    buffer += node.data[0].name || '';
     buffer += (node.data[0].value + ';');
     buffer += '\r\n';
 };
+
+let processData = function (data) {
+    let result = '';
+    if (!data)
+        return result;
+
+    for (let ii = 0; ii < data.length; ii++) {
+        let name = data[ii].name || '';
+        if (name.indexOf(':') > -1) {
+            name = name.replace(':', '') +
+                baseRules.postPropName +
+                ':' +
+                baseRules.postPropColon;
+        }
+        result += name;
+        result += data[ii].value || '';
+    }
+}
 
 let getStartingChar = function (node) {
     switch (node.type) {
@@ -131,15 +154,6 @@ let getStartingChar = function (node) {
 }
 
 let recurse = function (currentNode) {
-    // Don't want to write anything from root object,
-    // but want to step through it's children.
-    if (currentNode.type === _C.ROOT_TAG) {
-        for (let node of currentNode.childNodes) {
-            recurse(node);
-        }
-        return;
-    }
-
     switch (currentNode.isBlock) {
         case true:
             // These may recurse
@@ -153,12 +167,7 @@ let recurse = function (currentNode) {
     }
 };
 
-let write = function (obj, lintRules) {
-    if (!obj)
-        return;
-
-    
-
+let write = function (obj, lintRules) {    
     let root = obj;
     if (!root || root.name != _C.ROOT_TAG) {
         console.error("Bad root node: " + root);
@@ -166,7 +175,9 @@ let write = function (obj, lintRules) {
     }
 
     buffer = '';
-    recurse(root);
+    for (let node of root.childNodes) {
+        recurse(node);
+    }
     return buffer;
 };
 

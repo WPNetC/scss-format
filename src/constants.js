@@ -42,3 +42,6 @@ define('FUNC_WHILE', 'while');
 
 define('ELEM_NAME', 'el-name');
 define('ELEM_DATA', 'el-data');
+
+
+define('REGEX_COMMENTS', /([\/\*]+)([\s\w#\)\(\-]*)([*\/\r\n]+)/g);

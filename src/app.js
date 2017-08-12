@@ -60,8 +60,4 @@ let run = function (data, root) {
     return result;
 }
 
-module.exports = function (data, root) {
-    return {
-        run: run(data, root)
-    };
-};
+exports.run = run;

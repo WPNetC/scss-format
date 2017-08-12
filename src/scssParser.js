@@ -18,15 +18,15 @@ let createNode = function (args) {
 	}
 
 	let cIdx = 0;
-	if(args.parent){
+	if (args.parent) {
 		cIdx = args.parent.childNodes.length;
 	}
 
 	let node = {
-		guid: tools().getGuid,
+		guid: tools.getGuid,
 		type: args.type,
 		name: args.name || '',
-		data: tools(args.data).toDataArray,
+		data: tools.toDataArray(args.data, args.type),
 		depth: nestingLevel,
 		parent: args.parent, // Causes recursion issue when serializing if not handled.
 		isBlock: args.isBlock,
@@ -39,27 +39,6 @@ let createNode = function (args) {
 	}
 
 	return node;
-}
-
-function isCharNext(input, char) {
-	let pruned = pruneString(input);
-	let ii = 1;
-	for (; ii < pruned.length; ii++) {
-		if (pruned[ii] != '' && pruned[ii] != ' ') {
-			return pruned[ii] === char;
-		}
-	}
-	return false;
-}
-
-function isCharInArrayNext(input, char) {
-	for (let i = 0; i < input.length; i++) {
-		if (isCharNext(char[i])) {
-			return true;
-		}
-	}
-
-	return false;
 }
 
 function isVariableDeclaration(input) {
@@ -80,7 +59,7 @@ function isVariableDeclaration(input) {
 			break;
 		}
 	}
-	let pruned = tools(input.substr(input.indexOf('$'))).prunedString;
+	let pruned = tools.prunedString(input.substr(input.indexOf('$')));
 	/*
 	 Step forwards looking for an colon.
 	 ie. $color: white;
@@ -95,7 +74,7 @@ function isVariableDeclaration(input) {
 }
 
 function isFunctionABlock(input) {
-	let pruned = tools(input.substr(input.indexOf('@'))).prunedString;
+	let pruned = tools.prunedString(input.substr(input.indexOf('@')));
 	for (let ii = 0; ii < pruned.length; ii++) {
 		let chr = pruned[ii];
 		if (chr.match(/[@0-9:a-z_#,<>\/\.\$\(\)\s\-]/i)) {
@@ -112,7 +91,7 @@ function isFunctionABlock(input) {
 */
 let getFunctionElement = function (input) {
 
-	let pruned = input[0] === '@' ? input : tools(input).prunedString;
+	let pruned = input[0] === '@' ? input : tools.prunedString(input);
 
 	if (pruned.indexOf('@media') === 0) {
 		return _C.MEDIAQUERY_TAG;
@@ -153,19 +132,26 @@ let getFunctionElement = function (input) {
 	}
 }
 
-
 let setSingleNodeValue = function (node, input, idx) {
 	let varName = '';
 	let varValue = '';
-	while (idx++ < input.length && input[idx] != ' ') {
-		varName += input[idx];
+
+	if (node.type === _C.VARIABLE_TAG) {
+		while (idx < input.length && input[idx - 1] != ':') {
+			varName += input[idx++];
+		}
+	} else {
+		while (idx < input.length && input[idx] != ' ') {
+			varName += input[idx++];
+		}
 	}
-	while (idx++ < input.length && input[idx - 1] != ';') {
-		varValue += input[idx];
+
+	while (idx < input.length && input[idx - 1] != ';') {
+		varValue += input[idx++];
 	}
-	node.name = tools(varName).prunedString;
-	let prunedData = tools(varValue).prunedString;
-	node.data = tools(prunedData).toDataArray;
+	node.name = tools.prunedString(varName);
+	let prunedData = tools.prunedString(varValue);
+	node.data = tools.toDataArray(prunedData, node.type);
 
 	let remaining = input.substr(idx + 1);
 	return remaining;
@@ -174,7 +160,7 @@ let setSingleNodeValue = function (node, input, idx) {
 let outputToElement = function (output, currentNode) {
 
 	// Get first non-blank character.
-	let pruned = tools(output).prunedString;
+	let pruned = tools.prunedString(output);
 	let c = '';
 	let i = 0;
 
@@ -269,14 +255,12 @@ let recurse = function (input, currentNode) {
 					// Create new node for this, as we cannot have child elements of single line comment.
 					var node = createNode({
 						type: _C.COMMENT_SINGLE_TAG,
-						data: tools(commentString).prunedString,
+						data: tools.prunedString(commentString),
 						parent: currentNode,
 						isBlock: false
 					});
 				}
 
-				//let remaining = input.substr(idx);
-				//input = remaining;
 				input = input.replace(commentString, '').trim();
 				output = '';
 				idx = -1;
@@ -295,14 +279,12 @@ let recurse = function (input, currentNode) {
 					// Create new node for this, only content should be the comment text.
 					var node = createNode({
 						type: _C.COMMENT_MULTI_TAG,
-						data: tools(commentString).prunedString,
+						data: tools.prunedString(commentString),
 						parent: currentNode,
 						isBlock: false
 					});
 				}
 
-				//let remaining = input.substr(idx);
-				//input = remaining;
 				input = input.replace(commentString, '').trim();
 				output = '';
 				idx = -1;
@@ -317,7 +299,7 @@ let recurse = function (input, currentNode) {
 			if (currentNode === rootNode) {
 				if (input[idx] === '$') {
 					if (input[idx - 1] != '{' && input[idx - 2] != '#') { // Check for variable being used as selector rather than declared
-						var checkerString = tools(input).prunedString;
+						var checkerString = tools.prunedString(input);
 						// Try to catch variables being used as arguments.
 						if (isVariableDeclaration(checkerString)) {
 							var node = createNode({
@@ -361,7 +343,7 @@ let recurse = function (input, currentNode) {
 						If we are already in a block we need to handle the output as (partly) its content.
 						The aim is to split the contents of the current block from the name of the next block.
 					*/
-					if (currentNode.guid != rootNode.guid && output.length > 0) {
+					if (currentNode != rootNode && output.length > 0) {
 						/*
 							First check if we have stepped through a set of rules.
 							If we have we might be able to split them from the next block name.
@@ -370,7 +352,7 @@ let recurse = function (input, currentNode) {
 							var lstRuleIdx = output.lastIndexOf(';'); // Get index of last rule end.
 							let blockText = output.substr(0, lstRuleIdx + 1); // Split output to that point.
 
-							currentNode.data = tools(blockText).toDataArray; // Add the rules to current block.
+							currentNode.data = tools.toDataArray(blockText, currentNode.type); // Add the rules to current block.
 							output = output.substr(lstRuleIdx + 1); // Remove rules from next blocks name.
 						}
 					}
@@ -396,7 +378,7 @@ let recurse = function (input, currentNode) {
 					output += input[idx];
 				} else {
 					if (output.length > 0) {
-						currentNode.data = tools(output).toDataArray;
+						currentNode.data = tools.toDataArray(output, currentNode.type);
 						output = '';
 					}
 					return {
@@ -411,15 +393,45 @@ let recurse = function (input, currentNode) {
 	}
 }
 
-let rootNode = createNode({
-	name: _C.ROOT_TAG,
-	type: _C.ROOT_TAG,
-	isBlock: true
-});
 
+
+let inBlock = false,
+	inComment = false,
+	inFunction = false,
+	inParens = false;
+
+let isNotInRule = function () {
+	let noRules = inBlock && inComment && inFunction && inParens === false;
+	return noRules;
+
+}
+
+let readScss = function (text, currentNode) {
+
+
+	let ouput = '';
+
+	for (var ii = 0; ii < text.length; ii++) {
+		var chr = text[ii];
+
+		if(isNotInRule()){
+
+		}
+
+	}
+}
+
+let rootNode = {};
 
 let toObj = function (text) {
+	rootNode = createNode({
+		name: _C.ROOT_TAG,
+		type: _C.ROOT_TAG,
+		isBlock: true
+	});
+
 	recurse(text, rootNode);
+
 	return rootNode;
 }
 

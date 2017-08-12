@@ -19,7 +19,7 @@ function activate(context) {
             return;
 
 
-        var result = app(docText, root).run;
+        var result = app.run(docText, root);
 
         if (result.indexOf('Error') === 0) {
             vscode.window.showErrorMessage(result);
