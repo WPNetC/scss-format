@@ -2,10 +2,13 @@
 
 const lintParse = require('./lintFileParser'),
     fs = require('fs'),
-    path = require('path'),
     scan = require('./scan'),
     scssParse = require('./scssParser'),
-    scssWrite = require('./scssWriter');
+    scssWrite = require('./scssWriter'),
+    find = require('find');
+
+let lintFilePath = '';
+let lintRules = void 0;
 
 let parseAndFormat = function (root, data, lintRules) {
 
@@ -34,30 +37,38 @@ let parseAndFormat = function (root, data, lintRules) {
     return scssText.output;
 }
 
-// Get lint rules (if any)
+
+// Get path to lint rules
 let getLintFile = function (root) {
-
-    let lintFilePath = path.join(root, '.scsslint.yml');
-    let lintRules = {};
-    if (fs.exists(lintFilePath)) {
-
-        let tLint0 = process.hrtime();
-        let lintText = scan(lintFilePath, parseAndFormat, false).text.toString();
-        lintRules = lintParse(lintText).parseFile;
-        let lintTime = process.hrtime(tLint0);
-
-        console.log("Lint file parsed in " + lintTime[0] + "s " + lintTime[1] + "ns");
-    } else {
-        lintRules = lintParse('').linterRules;
-        console.log('\nNo lint rules file supplied. Will use standard ruleset: ' + JSON.stringify(lintRules.linterRules));
+    if (lintFilePath === '') {
+        let lintFilePaths = find.fileSync(/scsslint.yml/i, root);
+        if (lintFilePaths.length === 1) {
+            lintFilePath = lintFilePaths[0];
+        }
     }
-    return lintRules;
 }
 
-let run = function (data, root) {
-    let lintRules = getLintFile(root);
-    let result = parseAndFormat(root, data, lintRules);
-    return result;
+let run = function (data, root, callback) {
+    if (lintRules === void 0 || lintFilePath === '') {
+        getLintFile(root);
+    }
+
+    fs.exists(lintFilePath, (exists) => {
+        if (exists) {
+            let tLint0 = process.hrtime();
+            let lintText = scan(lintFilePath, parseAndFormat, false).text.toString();
+            lintRules = lintParse(lintText).parseFile;
+            let lintTime = process.hrtime(tLint0);
+
+            console.log("Lint file parsed in " + lintTime[0] + "s " + lintTime[1] + "ns");
+        } else {
+            lintFilePath === '';
+            lintRules = lintParse('').linterRules;
+            console.log('\nNo lint rules file supplied. Will use standard ruleset: ' + JSON.stringify(lintRules.linterRules));
+        }
+        let result = parseAndFormat(root, data, lintRules);
+        callback(result);
+    });
 }
 
 exports.run = run;

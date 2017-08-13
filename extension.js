@@ -18,20 +18,19 @@ function activate(context) {
         if (docText == void 0 || docText.trim() === '')
             return;
 
-
-        var result = app.run(docText, root);
-
-        if (result.indexOf('Error') === 0) {
-            vscode.window.showErrorMessage(result);
-        } else {
-            var rng = fullRange(actEd.document);
-            var edits = documentEdit(rng, result);
-            actEd.edit(editorEdit => {
-                for (let i = 0; i < edits.length; i++) {
-                    editorEdit.replace(edits[i].range, edits[i].newText);
-                }
-            });
-        }
+        app.run(docText, root, (result) => {
+            if (result.indexOf('Error') === 0) {
+                vscode.window.showErrorMessage(result);
+            } else {
+                var rng = fullRange(actEd.document);
+                var edits = documentEdit(rng, result);
+                actEd.edit(editorEdit => {
+                    for (let i = 0; i < edits.length; i++) {
+                        editorEdit.replace(edits[i].range, edits[i].newText);
+                    }
+                });
+            }
+        });
     });
 
     context.subscriptions.push(disposable);

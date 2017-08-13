@@ -5,7 +5,7 @@ const _C = require('./constants');
 let buffer = '';
 
 let baseRules = {
-    betweenBlock: '',
+    betweenBlock: '\r\n',
     indentChar: '\t',
     postComma: ' ',
     postPropColon: ' ',
@@ -15,20 +15,6 @@ let baseRules = {
     prePostOperator: '',
     postPreParens: ''
 };
-
-/*
-let node = {
-		guid: tools().getGuid,
-		type: args.type,
-		name: args.name || '',
-		data: tools(args.data).toDataArray,
-		depth: nestingLevel,
-		parent: args.parent, // Causes recursion issue when serializing if not handled.
-		isBlock: args.isBlock,
-		childIndex: cIdx,
-		childNodes: args.childNodes || []
-	};
-*/
 
 let writeIndent = function (nestingLevel) {
     let result = '';
@@ -114,23 +100,23 @@ let processNonBlock = function (node) {
     buffer += '\r\n';
 };
 
-let processData = function (data) {
-    let result = '';
-    if (!data)
-        return result;
+// let processData = function (data) {
+//     let result = '';
+//     if (!data)
+//         return result;
 
-    for (let ii = 0; ii < data.length; ii++) {
-        let name = data[ii].name || '';
-        if (name.indexOf(':') > -1) {
-            name = name.replace(':', '') +
-                baseRules.postPropName +
-                ':' +
-                baseRules.postPropColon;
-        }
-        result += name;
-        result += data[ii].value || '';
-    }
-}
+//     for (let ii = 0; ii < data.length; ii++) {
+//         let name = data[ii].name || '';
+//         if (name.indexOf(':') > -1) {
+//             name = name.replace(':', '') +
+//                 baseRules.postPropName +
+//                 ':' +
+//                 baseRules.postPropColon;
+//         }
+//         result += name;
+//         result += data[ii].value || '';
+//     }
+// }
 
 let getStartingChar = function (node) {
     switch (node.type) {

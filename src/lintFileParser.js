@@ -280,7 +280,7 @@ let parseFile = function (lintText) {
 
                 rules[ruleName][ruleParamName] = val;
             } else {
-                console.log('unusual parts length: ' + parts.length + '\r\n' + trimmed);
+                // console.log('unusual parts length: ' + parts.length + '\r\n' + trimmed);
             }
         } else {
             if (trimmed === '' || trimmed.indexOf(':') == -1) {
