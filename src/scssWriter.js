@@ -1,6 +1,7 @@
 'use strict';
 
-const _C = require('./constants');
+const _C = require('./constants'),
+    tools = require('./tools');
 
 let buffer = '';
 
@@ -14,6 +15,7 @@ let baseRules = {
     preBrace: ' ',
     prePostOperator: '',
     postPreParens: '',
+    quoteChar: '"',
     sortProperties: false
 };
 
@@ -110,6 +112,15 @@ let processLintObject = function (lintRules) {
 
     // Sort properties
     baseRules.sortProperties = lintRules.PropertySortOrder.enabled;
+
+    // String quotes
+    if (lintRules.StringQuotes.enabled) {
+        if (lintRules.StringQuotes.style === 'double_quotes') {
+            baseRules.quoteChar = '"';
+        } else {
+            baseRules.quoteChar = '\'';
+        }
+    }
 }
 
 let processBlock = function (node) {
@@ -183,9 +194,42 @@ let processBlock = function (node) {
             });
         }
 
+
         for (let rIdx = 0; rIdx < props.length; rIdx++) {
             let rule = props[rIdx];
             buffer += writeIndent(node.depth + 1);
+
+            // Adjust quote character if needed
+            /* NOT WELL TESTED. COULD BREAK STRINGS CONTAINING THE REPLACEMENT CHAR */
+            let firstQuote = -1,
+                lastQuote = -1;
+            if (baseRules.quoteChar != '"') {
+                firstQuote = rule.value.indexOf('"');
+                lastQuote = rule.value.lastIndexOf('"');
+            } else {
+                firstQuote = rule.value.indexOf('\'');
+                lastQuote = rule.value.lastIndexOf('\'');
+            }
+            if (firstQuote > -1 && firstQuote != lastQuote) {
+                if (baseRules.quoteChar === '\'') {
+                    rule.value = rule.value.replace(/'/g, '\\\'');
+                } else {
+                    rule.value = rule.value.replace(/"/g, '\\"');
+                }
+                
+                // Anoyingly we now need to recalulate the indexes of the quotes, as we have just altered the string. :(
+                if (baseRules.quoteChar != '"') {
+                    firstQuote = rule.value.indexOf('"');
+                    lastQuote = rule.value.lastIndexOf('"');
+                } else {
+                    firstQuote = rule.value.indexOf('\'');
+                    lastQuote = rule.value.lastIndexOf('\'');
+                }
+                rule.value = rule.value.replaceAt(firstQuote, baseRules.quoteChar);
+                rule.value = rule.value.replaceAt(lastQuote, baseRules.quoteChar);
+            }
+
+            // Write rule
             if (rule.name) {
                 buffer += (rule.name + baseRules.postPropName + ':' + baseRules.postPropColon); // Write name with formatted colon. :)
                 buffer += (rule.value + ';');

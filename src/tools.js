@@ -101,3 +101,7 @@ function guid() {
 		s4() + '-' + s4() + s4() + s4();
 }
 exports.getGuid = guid;
+
+String.prototype.replaceAt=function(index, replacement) {
+    return this.substr(0, index) + replacement+ this.substr(index + replacement.length);
+}
