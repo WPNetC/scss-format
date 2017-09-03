@@ -13,7 +13,8 @@ let baseRules = {
     postVarName: ' ',
     preBrace: ' ',
     prePostOperator: '',
-    postPreParens: ''
+    postPreParens: '',
+    sortProperties: false
 };
 
 let writeIndent = function (nestingLevel) {
@@ -63,21 +64,21 @@ let processLintObject = function (lintRules) {
             baseRules.postPropColon = '\t\t\t';
         }
     }
-    
+
     // Space after property name
     if (lintRules.SpaceAfterPropertyName.enabled) {
         baseRules.postPropName = ' ';
     } else {
         baseRules.postPropName = '';
     }
-    
+
     // Space after variable name
     if (lintRules.SpaceAfterVariableName.enabled) {
         baseRules.postVarName = ' ';
     } else {
         baseRules.postVarName = '';
     }
-    
+
     // Space around operator
     if (lintRules.SpaceAroundOperator.enabled) {
         if (lintRules.SpaceAroundOperator.style === 'no_space') {
@@ -95,7 +96,7 @@ let processLintObject = function (lintRules) {
             baseRules.preBrace = '\r\n';
         }
     }
-    
+
     // Space between parens
     if (lintRules.SpaceBetweenParens.enabled) {
         let c = '';
@@ -107,6 +108,8 @@ let processLintObject = function (lintRules) {
         baseRules.postPreParens = '';
     }
 
+    // Sort properties
+    baseRules.sortProperties = lintRules.PropertySortOrder.enabled;
 }
 
 let processBlock = function (node) {
@@ -133,8 +136,55 @@ let processBlock = function (node) {
 
     // Write block properties
     if (node.data) {
-        for (let rIdx = 0; rIdx < node.data.length; rIdx++) {
-            let rule = node.data[rIdx];
+        // Sort properties if required by lint rules
+        let props = node.data;
+        if (baseRules.sortProperties) {
+            props = node.data.sort(function (a, b) {
+                if (a.name && b.name) {
+                    // If both are named properties
+                    if (a.name < b.name) {
+                        return -1;
+                    }
+                    if (a.name > b.name) {
+                        return 1;
+                    }
+                    return 0;
+                } else if (a.name || b.name) {
+                    // If one is named property
+                    if (a.name) {
+                        if (a.name < b.value) {
+                            return -1;
+                        }
+                        if (a.name > b.value) {
+                            return 1;
+                        }
+                        return 0;
+                    } else if (b.name) {
+                        if (a.value < b.name) {
+                            return -1;
+                        }
+                        if (a.value > b.name) {
+                            return 1;
+                        }
+                        return 0;
+                    } else {
+                        return 0;
+                    }
+                } else {
+                    // If neither are named properties
+                    if (a.value < b.value) {
+                        return -1;
+                    }
+                    if (a.value > b.value) {
+                        return 1;
+                    }
+                    return 0;
+                }
+            });
+        }
+
+        for (let rIdx = 0; rIdx < props.length; rIdx++) {
+            let rule = props[rIdx];
             buffer += writeIndent(node.depth + 1);
             if (rule.name) {
                 buffer += (rule.name + baseRules.postPropName + ':' + baseRules.postPropColon); // Write name with formatted colon. :)
