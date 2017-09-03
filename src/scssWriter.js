@@ -24,6 +24,91 @@ let writeIndent = function (nestingLevel) {
     return result;
 }
 
+let processLintObject = function (lintRules) {
+
+    // Indentation
+    if (lintRules.Indentation.enabled) {
+        let c = lintRules.Indentation.character == 'tab' ? '\t' : ' ';
+        for (var ii = 1; ii < lintRules.Indentation.width; ii++) {
+            c += c;
+        }
+        baseRules.indentChar = c;
+    } else {
+        baseRules.indentChar = '';
+    }
+
+    // Space between blocks
+    if (lintRules.EmptyLineBetweenBlocks.enabled) {
+        baseRules.betweenBlock = '\r\n';
+    } else {
+        baseRules.betweenBlock = '';
+    }
+
+    // Space after comma
+    if (lintRules.SpaceAfterComma.enabled) {
+        if (lintRules.SpaceAfterComma.style === 'no_space') {
+            baseRules.postComma = '';
+        } else {
+            baseRules.postComma = ' ';
+        }
+    }
+
+    // Space after property colon
+    if (lintRules.SpaceAfterPropertyColon.enabled) {
+        if (lintRules.SpaceAfterPropertyColon.style === 'no_space') {
+            baseRules.postPropColon = '';
+        } else if (lintRules.SpaceAfterPropertyColon.style === 'one_space') {
+            baseRules.postPropColon = ' ';
+        } else {
+            baseRules.postPropColon = '\t\t\t';
+        }
+    }
+    
+    // Space after property name
+    if (lintRules.SpaceAfterPropertyName.enabled) {
+        baseRules.postPropName = ' ';
+    } else {
+        baseRules.postPropName = '';
+    }
+    
+    // Space after variable name
+    if (lintRules.SpaceAfterVariableName.enabled) {
+        baseRules.postVarName = ' ';
+    } else {
+        baseRules.postVarName = '';
+    }
+    
+    // Space around operator
+    if (lintRules.SpaceAroundOperator.enabled) {
+        if (lintRules.SpaceAroundOperator.style === 'no_space') {
+            baseRules.prePostOperator = '';
+        } else {
+            baseRules.prePostOperator = ' ';
+        }
+    }
+
+    // Space before brace
+    if (lintRules.SpaceBeforeBrace.enabled) {
+        if (lintRules.SpaceBeforeBrace.style === 'space') {
+            baseRules.preBrace = ' ';
+        } else {
+            baseRules.preBrace = '\r\n';
+        }
+    }
+    
+    // Space between parens
+    if (lintRules.SpaceBetweenParens.enabled) {
+        let c = '';
+        for (var ii = 0; ii < lintRules.SpaceBetweenParens.spaces; ii++) {
+            c += ' ';
+        }
+        baseRules.postPreParens = c;
+    } else {
+        baseRules.postPreParens = '';
+    }
+
+}
+
 let processBlock = function (node) {
 
     // Handle space between blocks.
@@ -153,12 +238,14 @@ let recurse = function (currentNode) {
     }
 };
 
-let write = function (obj, lintRules) {    
+let write = function (obj, lintRules) {
     let root = obj;
     if (!root || root.name != _C.ROOT_TAG) {
         console.error("Bad root node: " + root);
         return;
     }
+
+    processLintObject(lintRules);
 
     buffer = '';
     for (let node of root.childNodes) {
