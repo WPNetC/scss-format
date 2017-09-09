@@ -393,34 +393,6 @@ let recurse = function (input, currentNode) {
 	}
 }
 
-
-
-let inBlock = false,
-	inComment = false,
-	inFunction = false,
-	inParens = false;
-
-let isNotInRule = function () {
-	let noRules = inBlock && inComment && inFunction && inParens === false;
-	return noRules;
-
-}
-
-let readScss = function (text, currentNode) {
-
-
-	let ouput = '';
-
-	for (var ii = 0; ii < text.length; ii++) {
-		var chr = text[ii];
-
-		if(isNotInRule()){
-
-		}
-
-	}
-}
-
 let rootNode = {};
 
 let toObj = function (text) {

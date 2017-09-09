@@ -1,7 +1,6 @@
 'use strict';
 
-const _C = require('./constants'),
-    tools = require('./tools');
+const _C = require('./constants');
 
 let buffer = '';
 
@@ -124,7 +123,6 @@ let processLintObject = function (lintRules) {
 }
 
 let processBlock = function (node) {
-
     // Handle space between blocks.
     if (buffer != '') {
         if (node.depth === 0) {
@@ -313,6 +311,9 @@ let getStartingChar = function (node) {
         case _C.COMMENT_MULTI_TAG:
             return '/';
         default:
+            if(node.name.match(/([0-9])+%/)){
+                return '';
+            }
             return '@';
     }
 
