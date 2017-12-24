@@ -1,5 +1,8 @@
-var vscode = require('vscode'),
-    app = require('./src/app');
+'use babel';
+/* jshint esversion:6 */
+
+const ScssLintFormat = require('./src/app');
+var vscode = require('vscode');
 
 
 const documentEdit = (range, newText) => [vscode.TextEdit.replace(range, newText)];
@@ -10,7 +13,9 @@ function activate(context) {
         var root = vscode.workspace.rootPath;
         var actEd = vscode.window.activeTextEditor;
 
-        if (actEd == void 0 || actEd.document.fileName.indexOf('.scss') === -1)
+        if (actEd == void 0)
+            return;
+        if (actEd.document.fileName.indexOf('.scss') === -1 && actEd.document.languageId.indexOf('scss') === -1)
             return;
 
         var docText = actEd.document.getText();
@@ -18,7 +23,8 @@ function activate(context) {
         if (docText == void 0 || docText.trim() === '')
             return;
 
-        app.run(docText, root, (result) => {
+        let scssLintFormat = new ScssLintFormat('');
+        scssLintFormat.run(docText, (result) => {
             if (result.indexOf('Error') === 0) {
                 vscode.window.showErrorMessage(result);
             } else {

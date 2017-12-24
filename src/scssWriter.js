@@ -1,5 +1,12 @@
 'use strict';
 
+String.prototype.replaceAt = function (index, replacement) {
+    return this.substr(0, index) + replacement + this.substr(index + replacement.length);
+}
+String.prototype.toLowerStripped = function () {
+    return this.split(': ')[0].replace(/\s+/g, '-').replace(/[^a-zA-Z]/g, '').toLowerCase();
+}
+
 const _C = require('./constants');
 
 let buffer = '';
@@ -7,6 +14,7 @@ let buffer = '';
 let baseRules = {
     betweenBlock: '\r\n',
     indentChar: '\t',
+    leadingZeroChar: null,
     postComma: ' ',
     postPropColon: ' ',
     postPropName: '',
@@ -37,6 +45,14 @@ let processLintObject = function (lintRules) {
         baseRules.indentChar = c;
     } else {
         baseRules.indentChar = '';
+    }
+
+    if (lintRules.LeadingZero.enabled) {
+        if (lintRules.LeadingZero.style === 'exclude_zero') {
+            baseRules.leadingZeroChar = ' .';
+        } else {
+            baseRules.leadingZeroChar = ' 0.';
+        }
     }
 
     // Space between blocks
@@ -122,6 +138,15 @@ let processLintObject = function (lintRules) {
     }
 }
 
+let processParens = function (input) {
+    const matches = input.match(/\([ ]*([\w-_]*)[ ]*\)/i);
+    if(!matches) {
+        return input;
+    } else {
+        return input.replace(/\([ ]*([\w-_]*)[ ]*\)/gi, `(${baseRules.postPreParens}$1${baseRules.postPreParens})`);
+    }
+}
+
 let processBlock = function (node) {
     // Handle space between blocks.
     if (buffer != '') {
@@ -135,13 +160,19 @@ let processBlock = function (node) {
             }
         }
     }
+
     // Write block opening
     let sChr = getStartingChar(node);
     buffer += writeIndent(node.depth);
     if (sChr != '' && node.name.indexOf(sChr) != 0) {
         buffer += sChr;
     }
-    buffer += (node.name + baseRules.preBrace + '{\r\n');
+
+    // Fix spaces inside parens.
+    if (node.name) {
+        node.name = processParens(node.name);
+    }
+    buffer += (node.name.replace(/, /g, ',\r\n' + writeIndent(node.depth)) + baseRules.preBrace + '{\r\n');
 
     // Write block properties
     if (node.data) {
@@ -151,28 +182,34 @@ let processBlock = function (node) {
             props = node.data.sort(function (a, b) {
                 if (a.name && b.name) {
                     // If both are named properties
-                    if (a.name < b.name) {
+                    const x = a.name.toLowerStripped();
+                    const y = b.name.toLowerStripped();
+                    if (x < y) {
                         return -1;
                     }
-                    if (a.name > b.name) {
+                    if (x > y) {
                         return 1;
                     }
                     return 0;
                 } else if (a.name || b.name) {
                     // If one is named property
                     if (a.name) {
-                        if (a.name < b.value) {
+                        const x = a.name.toLowerStripped();
+                        const y = b.value.toLowerStripped();
+                        if (x < y) {
                             return -1;
                         }
-                        if (a.name > b.value) {
+                        if (x > y) {
                             return 1;
                         }
                         return 0;
                     } else if (b.name) {
-                        if (a.value < b.name) {
+                        const x = a.value.toLowerStripped();
+                        const y = b.name.toLowerStripped();
+                        if (x < y) {
                             return -1;
                         }
-                        if (a.value > b.name) {
+                        if (x > y) {
                             return 1;
                         }
                         return 0;
@@ -181,10 +218,12 @@ let processBlock = function (node) {
                     }
                 } else {
                     // If neither are named properties
-                    if (a.value < b.value) {
+                    const x = a.value.toLowerStripped();
+                    const y = b.value.toLowerStripped();
+                    if (x < y) {
                         return -1;
                     }
-                    if (a.value > b.value) {
+                    if (x > y) {
                         return 1;
                     }
                     return 0;
@@ -192,12 +231,12 @@ let processBlock = function (node) {
             });
         }
 
-
+        // Start writting the rules
         for (let rIdx = 0; rIdx < props.length; rIdx++) {
             let rule = props[rIdx];
             buffer += writeIndent(node.depth + 1);
 
-            // Adjust quote character if needed
+            // Adjust quote character if needed. Quotes should only be in the value not the name.
             /* NOT WELL TESTED. COULD BREAK STRINGS CONTAINING THE REPLACEMENT CHAR */
             let firstQuote = -1,
                 lastQuote = -1;
@@ -214,7 +253,7 @@ let processBlock = function (node) {
                 } else {
                     rule.value = rule.value.replace(/"/g, '\\"');
                 }
-                
+
                 // Anoyingly we now need to recalulate the indexes of the quotes, as we have just altered the string. :(
                 if (baseRules.quoteChar != '"') {
                     firstQuote = rule.value.indexOf('"');
@@ -227,11 +266,24 @@ let processBlock = function (node) {
                 rule.value = rule.value.replaceAt(lastQuote, baseRules.quoteChar);
             }
 
+            // Fix leading zero's if required
+            if (baseRules.leadingZeroChar !== null) {
+                var replacement = baseRules.leadingZeroChar + '$2';
+                rule.value = rule.value.replace(/( | 0)\.(\d*)/g, replacement);
+            }
+
             // Write rule
             if (rule.name) {
+                // Fix spaces inside parens.
+                rule.name = processParens(rule.name);
+                rule.value = processParens(rule.value);
+                // Write
                 buffer += (rule.name + baseRules.postPropName + ':' + baseRules.postPropColon); // Write name with formatted colon. :)
                 buffer += (rule.value + ';');
             } else {
+                // Fix spaces inside parens.
+                rule.value = processParens(rule.value);
+                // Write
                 buffer += (rule.value + ';');
             }
             buffer += '\r\n';
@@ -277,24 +329,6 @@ let processNonBlock = function (node) {
     buffer += '\r\n';
 };
 
-// let processData = function (data) {
-//     let result = '';
-//     if (!data)
-//         return result;
-
-//     for (let ii = 0; ii < data.length; ii++) {
-//         let name = data[ii].name || '';
-//         if (name.indexOf(':') > -1) {
-//             name = name.replace(':', '') +
-//                 baseRules.postPropName +
-//                 ':' +
-//                 baseRules.postPropColon;
-//         }
-//         result += name;
-//         result += data[ii].value || '';
-//     }
-// }
-
 let getStartingChar = function (node) {
     switch (node.type) {
         case _C.CLASS_TAG:
@@ -311,7 +345,7 @@ let getStartingChar = function (node) {
         case _C.COMMENT_MULTI_TAG:
             return '/';
         default:
-            if(node.name.match(/([0-9])+%/)){
+            if (node.name.match(/([0-9])+%/)) {
                 return '';
             }
             return '@';
