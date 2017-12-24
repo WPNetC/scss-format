@@ -1,4 +1,4 @@
-'use strict';
+'use babel';
 
 const lintParse = require('./lintFileParser'),
     fs = require('fs'),
@@ -36,7 +36,6 @@ let parseAndFormat = function (root, data, lintRules) {
     console.log("\nSuccess");
     return scssText.output;
 }
-
 
 // Get path to lint rules
 let getLintFile = function (root) {
